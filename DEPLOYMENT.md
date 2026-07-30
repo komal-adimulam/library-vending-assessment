@@ -4,7 +4,7 @@
 
 - Python 3.11 or higher
 - Docker (for PostgreSQL)
-- pip
+- uv
 - Git
 
 ## Step 1: Clone the Repository
@@ -37,22 +37,27 @@ docker start library_pg
 docker stop library_pg && docker rm library_pg   # fresh start
 ```
 
-## Step 3: Create a Virtual Environment
+## Step 3: Install Dependencies
 
 ```bash
-python3.11 -m venv .venv
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
+uv sync
 ```
 
-## Step 4: Install Dependencies
+## Step 4: Apply Database Migrations
+
+For a new database:
 
 ```bash
-pip install --upgrade pip
-pip install -r requirements.txt
+uv run alembic upgrade head
 ```
 
-You should see fastapi, uvicorn, sqlalchemy, psycopg2-binary, pydantic,
-pydantic-settings, requests in `pip list`.
+For a database created before migrations were introduced, verify that no
+duplicate idempotency keys exist, then run:
+
+```bash
+uv run alembic stamp 20260730_01
+uv run alembic upgrade head
+```
 
 ## Step 5: Configure Environment (optional)
 
@@ -64,7 +69,7 @@ DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/librarydb
 ## Step 6: Run the Application
 
 ```bash
-uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 8000
 ```
 
 ## Step 7: Verify
@@ -80,7 +85,7 @@ ReDoc: http://localhost:8000/redoc
 ## Step 8: Seed Data (optional)
 
 ```bash
-python scripts/seed_data.py --all
+uv run python scripts/seed_data.py --all
 ```
 
 ## Testing Guide

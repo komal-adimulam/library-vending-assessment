@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, SecretStr
 from typing import Optional
 from datetime import datetime
 
@@ -22,7 +22,7 @@ class UserCreate(BaseModel):
 
 class UserResponse(BaseModel):
     user_id: str
-    email: str
+    email: EmailStr
     full_name: str
     phone: Optional[str]
     created_at: datetime
@@ -116,3 +116,28 @@ class LoanDetail(BaseModel):
 class AuthenticatedUser(BaseModel):
     user_id: str
     username: str
+
+
+class SignUpRequest(UserCreate):
+    password: SecretStr = Field(..., min_length=12, max_length=128)
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "user_id": "PATRON-001",
+                "email": "patron@example.com",
+                "full_name": "Jane Reader",
+                "phone": "+91-9876543210",
+                "password": "my-secure-password-123",
+            }
+        }
+
+
+class SignInRequest(BaseModel):
+    email: EmailStr
+    password: SecretStr = Field(..., min_length=1, max_length=128)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"

@@ -34,7 +34,24 @@ This project uses Python 3.11 (pinned in `.python-version`). `uv sync` installs
 the locked dependencies into `.venv`; no manual virtual-environment activation
 is needed.
 
-### 3. Run the Application
+### 3. Apply Database Migrations
+
+For a new database:
+
+```bash
+uv run alembic upgrade head
+```
+
+For an existing database created before migrations were introduced, first
+verify that no duplicate idempotency keys exist, then establish the legacy
+baseline and apply the pending migration:
+
+```bash
+uv run alembic stamp 20260730_01
+uv run alembic upgrade head
+```
+
+### 4. Run the Application
 
 ```bash
 uv run uvicorn app.main:app --reload --port 8000
@@ -42,7 +59,7 @@ uv run uvicorn app.main:app --reload --port 8000
 
 The API will be available at `http://localhost:8000`
 
-### 4. Seed Sample Data
+### 5. Seed Sample Data
 
 ```bash
 # Seed a catalog and a couple of patrons with loans
@@ -131,9 +148,9 @@ python scripts/run_scenarios.py --scenario concurrent_checkout --repeat 5
 
 ## Database Management
 
-**Initialize schema:**
+**Apply migrations to a new database:**
 ```bash
-docker exec -i library_pg psql -U postgres -d librarydb < sql/schema.sql
+uv run alembic upgrade head
 ```
 
 **Load seed data:**
@@ -179,4 +196,5 @@ The application uses:
 - PostgreSQL for the database
 - Pydantic v2 for data validation
 
-Database schema is automatically initialized on application startup.
+Database schema changes are applied with Alembic migrations before starting
+the application.

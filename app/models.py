@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime, CheckConstraint, Text, ForeignKey
+from sqlalchemy import Column, String, Integer, DateTime, CheckConstraint, ForeignKey, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -14,6 +14,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False)
     full_name = Column(String(255), nullable=False)
     phone = Column(String(20), nullable=True)
+    password_hash = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     is_active = Column(String(10), default="true")
 
@@ -38,6 +39,10 @@ class Book(Base):
     __table_args__ = (
         CheckConstraint('copies_available >= 0', name='check_copies_available_non_negative'),
         CheckConstraint('copies_total >= 0', name='check_copies_total_non_negative'),
+        CheckConstraint(
+            'copies_available <= copies_total',
+            name='check_copies_available_not_greater_than_total',
+        ),
     )
 
 
@@ -47,10 +52,14 @@ class Loan(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(100), ForeignKey('users.user_id'), nullable=False)
     book_id = Column(String(100), ForeignKey('books.book_id'), nullable=False)
-    idempotency_key = Column(Text, nullable=True)
+    idempotency_key = Column(String(255), nullable=True)
     status = Column(String(50), nullable=False, default="borrowed")
     borrowed_at = Column(DateTime, default=datetime.utcnow)
     returned_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint('idempotency_key', name='uq_loans_idempotency_key'),
+    )
 
     # Relationships
     user = relationship("User", back_populates="loans")
