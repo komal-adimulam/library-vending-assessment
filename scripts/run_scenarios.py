@@ -6,18 +6,21 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 class ScenarioRunner:
-    def __init__(self, base_url: str, user_id: str, book_id: str):
+    def __init__(self, base_url: str, user_id: str, book_id: str, token: str | None = None):
         self.base_url = base_url
         self.user_id = user_id
         self.book_id = book_id
+        self.session = requests.Session()
+        if token:
+            self.session.headers["Authorization"] = f"Bearer {token}"
 
     def ensure_user(self):
         """Ensure patron exists."""
         print(f"Ensuring patron exists for {self.user_id}...")
-        response = requests.get(f"{self.base_url}/users/{self.user_id}")
+        response = self.session.get(f"{self.base_url}/users/{self.user_id}")
         if response.status_code == 404:
             print(f"Creating patron {self.user_id}...")
-            requests.post(
+            self.session.post(
                 f"{self.base_url}/users",
                 json={
                     "user_id": self.user_id,
@@ -30,10 +33,10 @@ class ScenarioRunner:
     def ensure_book(self, copies_total: int = 20):
         """Ensure a book with plenty of copies exists (used for the retry scenario)."""
         print(f"Ensuring book exists for {self.book_id}...")
-        response = requests.get(f"{self.base_url}/books/{self.book_id}")
+        response = self.session.get(f"{self.base_url}/books/{self.book_id}")
         if response.status_code == 404:
             print("Creating book...")
-            requests.post(
+            self.session.post(
                 f"{self.base_url}/books",
                 json={
                     "book_id": self.book_id,
@@ -58,14 +61,14 @@ class ScenarioRunner:
 
         print(f"Attempt 1: Checking out with idempotency_key={idempotency_key}")
         try:
-            response1 = requests.post(f"{self.base_url}/loans", json=payload, timeout=1.0)
+            response1 = self.session.post(f"{self.base_url}/loans", json=payload, timeout=1.0)
             print(f"Attempt 1 response: {response1.status_code} - {response1.json()}")
         except requests.exceptions.Timeout:
             print("Attempt 1: Request timed out")
 
         print("\nAttempt 2: Retrying same checkout...")
         try:
-            response2 = requests.post(f"{self.base_url}/loans", json=payload, timeout=10.0)
+            response2 = self.session.post(f"{self.base_url}/loans", json=payload, timeout=10.0)
             print(f"Attempt 2 response: {response2.status_code} - {response2.json()}")
         except requests.exceptions.Timeout:
             print("Attempt 2: Request timed out")
@@ -73,7 +76,7 @@ class ScenarioRunner:
         time.sleep(1)
 
         print(f"\nFetching all loans for {self.user_id}...")
-        response = requests.get(f"{self.base_url}/loans?user_id={self.user_id}")
+        response = self.session.get(f"{self.base_url}/loans?user_id={self.user_id}")
         loans = response.json()
 
         matching = [l for l in loans if l.get('idempotency_key') == idempotency_key]
@@ -88,7 +91,7 @@ class ScenarioRunner:
         limited_book_id = f"{self.book_id}-LIMITED"
         copies = 5
         print(f"Creating a book with only {copies} copies: {limited_book_id}")
-        requests.post(
+        self.session.post(
             f"{self.base_url}/books",
             json={
                 "book_id": limited_book_id,
@@ -103,7 +106,7 @@ class ScenarioRunner:
 
         def checkout(i):
             patron_id = f"LOADTEST-{i}"
-            requests.post(
+            self.session.post(
                 f"{self.base_url}/users",
                 json={
                     "user_id": patron_id,
@@ -112,7 +115,7 @@ class ScenarioRunner:
                 }
             )
             try:
-                response = requests.post(
+                response = self.session.post(
                     f"{self.base_url}/loans",
                     json={"user_id": patron_id, "book_id": limited_book_id}
                 )
@@ -128,7 +131,7 @@ class ScenarioRunner:
         print(f"Successful checkouts: {successful}/{num_requests} (only {copies} should have succeeded)")
 
         time.sleep(0.5)
-        book = requests.get(f"{self.base_url}/books/{limited_book_id}").json()
+        book = self.session.get(f"{self.base_url}/books/{limited_book_id}").json()
         print(f"\nFinal copies_available: {book['copies_available']} (should never be negative)")
         print(f"copies_total: {book['copies_total']}")
         if successful > copies:
@@ -145,7 +148,7 @@ class ScenarioRunner:
         }
 
         print("Checking out a book that does not exist in the catalog...")
-        response = requests.post(f"{self.base_url}/loans", json=invalid_payload)
+        response = self.session.post(f"{self.base_url}/loans", json=invalid_payload)
 
         print(f"Response status: {response.status_code}")
         print(f"Response body: {response.json()}")
@@ -157,7 +160,7 @@ class ScenarioRunner:
         self.ensure_book(copies_total=3)
 
         print("\nChecking out book...")
-        response = requests.post(
+        response = self.session.post(
             f"{self.base_url}/loans",
             json={"user_id": self.user_id, "book_id": self.book_id},
             timeout=10.0
@@ -168,7 +171,7 @@ class ScenarioRunner:
             loan_id = response.json()["loan_id"]
             time.sleep(0.3)
             print(f"\nReturning loan {loan_id}...")
-            return_response = requests.post(f"{self.base_url}/loans/{loan_id}/return")
+            return_response = self.session.post(f"{self.base_url}/loans/{loan_id}/return")
             print(f"Return response: {return_response.status_code} - {return_response.json()}")
 
 
@@ -180,11 +183,12 @@ def main():
     parser.add_argument("--base-url", default="http://localhost:8000", help="Base URL of the API")
     parser.add_argument("--user-id", default="PATRON-001", help="Patron ID to use")
     parser.add_argument("--book-id", default="BOOK-001", help="Book ID to use")
+    parser.add_argument("--token", help="Bearer token for authenticated API requests")
     parser.add_argument("--repeat", type=int, default=1, help="Number of times to repeat the scenario")
 
     args = parser.parse_args()
 
-    runner = ScenarioRunner(args.base_url, args.user_id, args.book_id)
+    runner = ScenarioRunner(args.base_url, args.user_id, args.book_id, args.token)
 
     scenarios = {
         "checkout_retry": runner.checkout_retry,

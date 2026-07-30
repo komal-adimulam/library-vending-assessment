@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Python 3.11 or higher
-- Docker (for PostgreSQL)
+- PostgreSQL 16 or newer
 - uv
 - Git
 
@@ -16,25 +16,11 @@ cd library-lending-api
 
 ## Step 2: Set Up PostgreSQL
 
-```bash
-docker run --name library_pg \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_DB=librarydb \
-  -p 5432:5432 \
-  -d postgres:16
-```
+Install PostgreSQL locally and ensure its server is running on port 5432.
+Create the development database once:
 
-Verify it's running:
 ```bash
-docker ps | grep library_pg
-```
-
-Stop / start / remove when needed:
-```bash
-docker stop library_pg
-docker start library_pg
-docker stop library_pg && docker rm library_pg   # fresh start
+psql -U postgres -d postgres -c "CREATE DATABASE librarydb;"
 ```
 
 ## Step 3: Install Dependencies
@@ -63,7 +49,7 @@ uv run alembic upgrade head
 
 ```bash
 # .env (optional)
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/librarydb
+DATABASE_URL=postgresql+psycopg2://postgres:<password>@localhost:5432/librarydb
 ```
 
 ## Step 6: Run the Application
@@ -85,7 +71,7 @@ ReDoc: http://localhost:8000/redoc
 ## Step 8: Seed Data (optional)
 
 ```bash
-uv run python scripts/seed_data.py --all
+psql -U postgres -d librarydb -f sql/seed_data.sql
 ```
 
 ## Testing Guide

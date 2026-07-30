@@ -140,11 +140,10 @@ curl -X POST http://localhost:8000/loans/{loan_id}/return
 ## Testing Scenarios
 
 ```bash
-python scripts/run_scenarios.py --scenario all
-python scripts/run_scenarios.py --scenario checkout_retry
-python scripts/run_scenarios.py --scenario concurrent_checkout
-python scripts/run_scenarios.py --scenario concurrent_checkout --repeat 5
+python scripts/run_scenarios.py --scenario main_flow --user-id PATRON-001 --book-id BOOK-003 --token <access-token>
 ```
+
+Create the access token with `POST /auth/signup` or `POST /auth/signin` first.
 
 ## Database Management
 
@@ -155,7 +154,7 @@ uv run alembic upgrade head
 
 **Load seed data:**
 ```bash
-docker exec -i library_pg psql -U postgres -d librarydb < sql/seed_data.sql
+psql -U postgres -d librarydb -f sql/seed_data.sql
 ```
 
 ## Project Structure
