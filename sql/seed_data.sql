@@ -1,10 +1,21 @@
--- Sample data for manual testing
-INSERT INTO users (user_id, email, full_name, phone) VALUES
-    ('PATRON-001', 'patron1@example.com', 'Jane Reader', '+91-9876543210'),
-    ('PATRON-002', 'patron2@example.com', 'Sam Bookworm', '+91-9876543211')
+-- Demo catalog, patrons, and active loans for local development.
+-- Safe to run repeatedly after `alembic upgrade head`.
+
+INSERT INTO users (user_id, email, full_name, phone, is_active)
+VALUES
+    ('PATRON-001', 'jane.reader@example.com', 'Jane Reader', '+91-9876543210', 'true'),
+    ('PATRON-002', 'sam.bookworm@example.com', 'Sam Bookworm', '+91-9876543211', 'true')
 ON CONFLICT (user_id) DO NOTHING;
 
-INSERT INTO books (book_id, title, author, isbn, copies_total, copies_available) VALUES
-    ('BOOK-001', 'Designing Data-Intensive Applications', 'Martin Kleppmann', '9781449373320', 2, 2),
-    ('BOOK-002', 'Clean Code', 'Robert C. Martin', '9780132350884', 1, 1)
+INSERT INTO books (book_id, title, author, isbn, copies_total, copies_available)
+VALUES
+    ('BOOK-001', 'Designing Data-Intensive Applications', 'Martin Kleppmann', '9781449373320', 2, 0),
+    ('BOOK-002', 'Clean Code', 'Robert C. Martin', '9780132350884', 1, 1),
+    ('BOOK-003', 'The Pragmatic Programmer', 'David Thomas', '9780135957059', 3, 3)
 ON CONFLICT (book_id) DO NOTHING;
+
+INSERT INTO loans (id, user_id, book_id, idempotency_key, status)
+VALUES
+    ('00000000-0000-0000-0000-000000000001', 'PATRON-001', 'BOOK-001', 'seed-loan-PATRON-001-0', 'borrowed'),
+    ('00000000-0000-0000-0000-000000000002', 'PATRON-002', 'BOOK-001', 'seed-loan-PATRON-002-0', 'borrowed')
+ON CONFLICT (idempotency_key) DO NOTHING;
